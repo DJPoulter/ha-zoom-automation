@@ -86,7 +86,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType):
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up Zoom from a config entry."""
-    hass.data.setdefault(DOMAIN, {}).setdefault(VERIFICATION_TOKENS, set())
+    hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN].setdefault(entry.entry_id, {})
     try:
         implementation = (

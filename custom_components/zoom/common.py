@@ -2,12 +2,15 @@
 
 from datetime import timedelta
 from http import HTTPStatus
+import hashlib
+import hmac
 from logging import getLogger
 from typing import Any, Dict, List
 
 from aiohttp.web import Request, Response
 from homeassistant.components.http.view import HomeAssistantView
 from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import config_entry_oauth2_flow
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -93,6 +96,22 @@ class ZoomOAuth2Implementation(config_entry_oauth2_flow.LocalOAuth2Implementatio
         url = get_url(self.hass, allow_internal=False, prefer_cloud=True)
         return f"{url}{config_entry_oauth2_flow.AUTH_CALLBACK_PATH}"
 
+def _get_hashed_hex_msg(key: str, message: str) -> str:
+    """Generate a HMAC hashed message in hex for a Zoom webhook request."""
+    hmac_ = hmac.new(key.encode(), message.encode(), hashlib.sha256)
+    return hmac_.hexdigest()
+
+def _find_entry_with_signature(
+    hass: HomeAssistant, signature: str, signature_msg: str
+) -> tuple[ConfigEntry | None, str | None]:
+    """Find config entry with signature if it exists."""
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        secret_token = entry.data.get(CONF_SECRET_TOKEN)
+        if secret_token and hmac.compare_digest(
+            f"v0={_get_hashed_hex_msg(str(secret_token), signature_msg)}", signature
+        ):
+            return entry, str(secret_token)
+    return None, None
 
 class ZoomWebhookRequestView(HomeAssistantView):
     """Provide a page for the device to call."""
@@ -104,30 +123,55 @@ class ZoomWebhookRequestView(HomeAssistantView):
 
     async def post(self, request: Request) -> Response:
         """Respond to requests from the device."""
+        text = await request.text()
         hass = request.app["hass"]
         headers = request.headers
-        verification_tokens = hass.data.get(DOMAIN, {}).get(VERIFICATION_TOKENS, set())
-        tokens = headers.getall("authorization")
 
-        for token in tokens:
-            if not verification_tokens or (token and token in verification_tokens):
-                try:
-                    data = await request.json()
-                    status = WEBHOOK_RESPONSE_SCHEMA(data)
-                    _LOGGER.debug("Received event: %s", status)
-                    hass.bus.async_fire(f"{HA_ZOOM_EVENT}", {**status, "token": token})
-                except Exception as err:
-                    _LOGGER.warning(
-                        "Received authorized event but unable to parse: %s (%s)",
-                        await request.text(),
-                        err,
-                    )
-                return Response(status=HTTPStatus.OK)
+        if not (
+            (signature := headers.get("x-zm-signature"))
+            and (timestamp := headers.get("x-zm-request-timestamp"))
+        ):
+            _LOGGER.info("Headers: %s", headers)
+            return Response(status=HTTPStatus.OK)
 
-        _LOGGER.warning(
-            "Received unauthorized request: %s (Headers: %s)",
-            await request.text(),
-            request.headers,
+        try:
+            data = await request.json()
+            status = WEBHOOK_RESPONSE_SCHEMA(data)
+
+        except Exception as err:
+            _LOGGER.info(
+                "(Headers: %s) (Error: %s)",
+                headers,
+                err,
+            )
+            return Response(status=HTTPStatus.OK)
+        
+        # Find the first config entry where the secret token can be used to
+        # match the signature header from the webhook validation request
+
+        entry, secret_token = _find_entry_with_signature(
+            hass, signature, f"v0:{timestamp}:{text}"
+        )
+        if not entry:
+            # if we get here, there was no found config entry with a matching secret
+            # token and we have to fail the validation request. We still respond with
+            # a 200 status code so we don't leak information about this endpoint.
+            _LOGGER.warning(
+                "Received Zoom webhook request that doesn't match any config entries'"
+                "secret token. Ensure you have configured the Zoom integration with "
+                "the correct secret token."
+            )
+            return Response(status=HTTPStatus.OK)
+        assert secret_token
+
+        
+        _LOGGER.debug(
+            "Received validated Zoom event for config entry %s: %s",
+            entry.entry_id,
+            status,
+        )
+        hass.bus.async_fire(
+            f"{HA_ZOOM_EVENT}", {**status, "ha_config_entry_id": entry.entry_id}
         )
         return Response(status=HTTPStatus.OK)
 
