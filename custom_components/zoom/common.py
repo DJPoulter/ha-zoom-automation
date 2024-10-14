@@ -14,10 +14,10 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import ZoomAPI
 from .const import (
+    CONF_SECRET_TOKEN,
     DOMAIN,
     HA_URL,
     HA_ZOOM_EVENT,
-    VERIFICATION_TOKENS,
     WEBHOOK_RESPONSE_SCHEMA,
 )
 
@@ -67,11 +67,11 @@ class ZoomOAuth2Implementation(config_entry_oauth2_flow.LocalOAuth2Implementatio
         client_secret: str,
         authorize_url: str,
         token_url: str,
-        verification_token: str,
+        secret_token: str,
         name: str,
     ) -> None:
         """Initialize local auth implementation."""
-        self._verification_token = verification_token
+        self._secret_token = secret_token
         self._name = name
         super().__init__(
             hass, domain, client_id, client_secret, authorize_url, token_url

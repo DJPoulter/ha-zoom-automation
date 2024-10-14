@@ -14,7 +14,7 @@ from .common import ZoomOAuth2Implementation, valid_external_url
 from .const import (
     ALL_CONNECTIVITY_STATUSES,
     CONF_CONNECTIVITY_ON_STATUSES,
-    CONF_VERIFICATION_TOKEN,
+    CONF_SECRET_TOKEN,
     DEFAULT_NAME,
     DOMAIN,
     OAUTH2_AUTHORIZE,
@@ -113,7 +113,7 @@ class ZoomOAuth2FlowHandler(
                     user_input[CONF_CLIENT_SECRET],
                     OAUTH2_AUTHORIZE,
                     OAUTH2_TOKEN,
-                    user_input[CONF_VERIFICATION_TOKEN],
+                    user_input[CONF_SECRET_TOKEN],
                     user_input[CONF_NAME],
                 ),
             )
@@ -128,7 +128,7 @@ class ZoomOAuth2FlowHandler(
             CONF_NAME: user_input[CONF_NAME],
             CONF_CLIENT_ID: user_input[CONF_CLIENT_ID],
             CONF_CLIENT_SECRET: user_input[CONF_CLIENT_SECRET],
-            CONF_VERIFICATION_TOKEN: user_input[CONF_VERIFICATION_TOKEN],
+            CONF_SECRET_TOKEN: user_input[CONF_SECRET_TOKEN],
         }
         return await self.async_step_reauth_confirm()
 
@@ -185,7 +185,7 @@ class ZoomOAuth2FlowHandler(
                 CONF_NAME: name,
                 CONF_CLIENT_ID: self.flow_impl.client_id,
                 CONF_CLIENT_SECRET: self.flow_impl.client_secret,
-                CONF_VERIFICATION_TOKEN: self.flow_impl._verification_token,
+                CONF_SECRET_TOKEN: self.flow_impl._secret_token,
             }
         )
         if not self.unique_id:

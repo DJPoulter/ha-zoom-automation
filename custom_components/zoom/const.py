@@ -11,7 +11,7 @@ DEFAULT_NAME = "Zoom"
 HA_URL = f"/api/{DOMAIN}"
 
 CONF_CONNECTIVITY_ON_STATUSES = "connectivity_on_statuses"
-CONF_VERIFICATION_TOKEN = "verification_token"
+CONF_SECRET_TOKEN = "secret_token"
 
 OAUTH2_AUTHORIZE = "https://zoom.us/oauth/authorize"
 OAUTH2_TOKEN = "https://zoom.us/oauth/token"
@@ -21,18 +21,15 @@ USER_PROFILE_URL = "users/me"
 USER_PROFILE_COORDINATOR = "user_profile_coordinator"
 CONTACT_LIST_URL = "chat/users/me/contacts"
 CONTACT_LIST_COORDINATOR = "contact_list_coordinator"
-VERIFICATION_TOKENS = "verification_tokens"
 
 ZOOM_SCHEMA = vol.Schema(
     {
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): vol.Coerce(str),
         vol.Required(CONF_CLIENT_ID): vol.Coerce(str),
         vol.Required(CONF_CLIENT_SECRET): vol.Coerce(str),
-        vol.Required(CONF_VERIFICATION_TOKEN): vol.Coerce(str),
+        vol.Required(CONF_SECRET_TOKEN): vol.Coerce(str),
     }
 )
-
-CONF_VERIFICATION_TOKEN = "verification_token"
 
 ATTR_EVENT = "event"
 ATTR_PAYLOAD = "payload"

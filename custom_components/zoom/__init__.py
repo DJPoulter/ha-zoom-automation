@@ -28,12 +28,11 @@ from .common import (
 from .config_flow import ZoomOAuth2FlowHandler
 from .const import (
     API,
-    CONF_VERIFICATION_TOKEN,
+    CONF_SECRET_TOKEN,
     DOMAIN,
     OAUTH2_AUTHORIZE,
     OAUTH2_TOKEN,
     USER_PROFILE_COORDINATOR,
-    VERIFICATION_TOKENS,
     ZOOM_SCHEMA,
 )
 
@@ -77,7 +76,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType):
                 app[CONF_CLIENT_SECRET],
                 OAUTH2_AUTHORIZE,
                 OAUTH2_TOKEN,
-                app[CONF_VERIFICATION_TOKEN],
+                app[CONF_SECRET_TOKEN],
                 app[CONF_NAME],
             ),
         )
@@ -103,7 +102,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             entry.data[CONF_CLIENT_SECRET],
             OAUTH2_AUTHORIZE,
             OAUTH2_TOKEN,
-            entry.data[CONF_VERIFICATION_TOKEN],
+            entry.data[CONF_SECRET_TOKEN],
             entry.data[CONF_NAME],
         )
         ZoomOAuth2FlowHandler.async_register_implementation(hass, implementation)
@@ -113,7 +112,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     await coordinator.async_refresh()
     hass.data[DOMAIN][entry.entry_id][USER_PROFILE_COORDINATOR] = coordinator
     hass.data[DOMAIN][entry.entry_id][API] = api
-    hass.data[DOMAIN][VERIFICATION_TOKENS].add(entry.data[CONF_VERIFICATION_TOKEN])
 
     try:
         my_profile = await api.async_get_my_user_profile()
@@ -143,10 +141,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # Register view
     hass.http.register_view(ZoomWebhookRequestView())
 
-    for platform in PLATFORMS:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, platform)
-        )
+    hass.async_create_task(
+        hass.config_entries.async_forward_entry_setup(entry, PLATFORMS)
+    )
 
     return True
 
